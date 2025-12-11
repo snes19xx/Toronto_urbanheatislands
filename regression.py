@@ -6,7 +6,7 @@ import statsmodels.api as sm
 from os.path import join
 
 # LOAD DATA
-# Loading the GeoPackage created in Part 1
+# Loading the GeoPackage created in Part 3
 gdf = gpd.read_file(join("shapefiles", "Toronto_ct", "Census_full.gpkg"))
 
 print(f"Loaded {len(gdf)} Census Tracts.")
@@ -58,4 +58,5 @@ ndvi_coefficient = model.params.get(ndvi_var, 0)
 
 print(f"\n{'-'*60}")
 print(f"EXTRACTED COEFFICIENT (β_NDVI): {ndvi_coefficient:.4f}")
+
 print(f"{'-'*60}")
