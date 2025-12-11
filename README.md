@@ -113,30 +113,33 @@ Create monthly mosaics (May–August) using rasterio.merge.
 
 Outputs:
 
-B10_MOSAIC_TORONTO_MAY.TIF
+- B10_MOSAIC_TORONTO_MAY.TIF
 
-B10_MOSAIC_TORONTO_JUNE.TIF
+- B10_MOSAIC_TORONTO_JUNE.TIF
 
-B10_MOSAIC_TORONTO_JULY.TIF
+- B10_MOSAIC_TORONTO_JULY.TIF
 
-B10_MOSAIC_TORONTO_AUGUST.TIF
+- B10_MOSAIC_TORONTO_AUGUST.TIF
 
 Temperature conversion:
+```python
 Temp(K) = DN * 0.00341802 + 149.0
 Temp(C) = Temp(K) - 273.15
-
+```
 2. NDVI Raster Processing
 
 Steps:
 
-Load Landsat 8/9 scenes from May–August 2025.
+- Load Landsat 8/9 scenes from May–August 2025.
 
-Cloud mask using QA_PIXEL.
+- Cloud mask using QA_PIXEL.
 
-Convert reflectance scaling.
+- Convert reflectance scaling.
 
 Compute NDVI:
+```python
 NDVI = (NIR - RED) / (NIR + RED)
-Median composite to form a stable NDVI raster.
+```
+- Median composite to form a stable NDVI raster.
 
-Export via Earth Engine to Google Drive.
+- Export via Earth Engine to Google Drive.
