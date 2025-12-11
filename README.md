@@ -69,8 +69,6 @@ Extracted from census attributes:
 
 ---
 
----
-
 ## Environment Setup
 
 ### **Required Libraries**
@@ -98,27 +96,18 @@ import ee
 ee.Authenticate()
 ee.Initialize()
 ```
-Methodology
+## Methodology
 1. Thermal Raster Processing
-
-Load Landsat Band 10 thermal TIFFs.
-
-Print metadata for QC (min/max, CRS, pixel resolution).
-
-Clip all rasters to the Toronto boundary using rasterio.mask.
-
-Save clipped rasters by month.
-
-Create monthly mosaics (May–August) using rasterio.merge.
-
-Outputs:
-
+- Load Landsat Band 10 thermal TIFFs.
+- Print metadata for QC (min/max, CRS, pixel resolution).
+- Clip all rasters to the Toronto boundary using rasterio.mask.
+- Save clipped rasters by month.
+- Create monthly mosaics (May–August) using rasterio.merge.
+  
+## Outputs:
 - B10_MOSAIC_TORONTO_MAY.TIF
-
 - B10_MOSAIC_TORONTO_JUNE.TIF
-
 - B10_MOSAIC_TORONTO_JULY.TIF
-
 - B10_MOSAIC_TORONTO_AUGUST.TIF
 
 Temperature conversion:
@@ -126,20 +115,15 @@ Temperature conversion:
 Temp(K) = DN * 0.00341802 + 149.0
 Temp(C) = Temp(K) - 273.15
 ```
-2. NDVI Raster Processing
+## 2. NDVI Raster Processing
 
 Steps:
-
 - Load Landsat 8/9 scenes from May–August 2025.
-
 - Cloud mask using QA_PIXEL.
-
 - Convert reflectance scaling.
-
-Compute NDVI:
+- Compute NDVI:
 ```python
 NDVI = (NIR - RED) / (NIR + RED)
 ```
 - Median composite to form a stable NDVI raster.
-
 - Export via Earth Engine to Google Drive.
