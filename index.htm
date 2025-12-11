@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toronto Heat Islands Explorer</title>
+    
+    <!-- External dependencies -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+
+    <!-- Local data file -->
+    <script src="toronto_heat_data.js"></script> 
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        bg0: '#2d353b', bg1: '#343f44', bg2: '#3d484d', bg3: '#475258',
+                        fg: '#d3c6aa', red: '#e67e80', orange: '#e69875',
+                        yellow: '#dbbc7f', green: '#a7c080', aqua: '#83c092',
+                        blue: '#7fbbb3', purple: '#d699b6', grey0: '#7a8478',
+                        grey1: '#859289', grey2: '#9da9a0'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .leaflet-container { background: #2d353b; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #2d353b; }
+        ::-webkit-scrollbar-thumb { background: #475258; border-radius: 4px; }
+        ::webkit-scrollbar-thumb:hover { background: #7a8478; }
+        
+        /* Custom slider styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #3d484d;
+            border-radius: 4px;
+            outline: none;
+            background-image: linear-gradient(#a7c080, #a7c080);
+            background-size: 0% 100%;
+            background-repeat: no-repeat;
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #d3c6aa;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            margin-top: -5px;
+            border: 2px solid #2d353b;
+        }
+
+        .layer-btn.active {
+            background-color: #3d484d;
+            border-color: #a7c080;
+            color: #d3c6aa;
+            box-shadow: 0 0 15px rgba(167,192,128,0.1);
+        }
+        
+        .tooltip-trigger:hover .tooltip-content {
+            display: block;
+        }
+
+        .base-map-btn {
+            @apply w-1/4 h-12 flex items-center justify-center text-xl font-bold rounded-lg transition-all bg-bg0 text-grey2 border border-bg2 hover:bg-bg3;
+        }
+        .base-map-btn.active {
+            @apply bg-green text-bg0 border-green hover:bg-green/80;
+        }
+    </style>
+</head>
+<body class="bg-bg0 text-fg h-screen flex flex-col overflow-hidden font-sans selection:bg-green selection:text-bg0">
+
+    <header class="bg-bg1 border-b border-bg3 p-4 flex justify-between items-center shadow-lg z-[3000] h-16 relative">
+        <div class="flex items-center gap-3">
+            <div class="p-1.5 bg-bg2 rounded-lg border border-bg3">
+                <i data-lucide="map" class="w-5 h-5 text-green"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-fg tracking-tight">Toronto Heat Islands Explorer</h1>
+            </div>
+        </div>
+        
+        <div class="flex gap-4 text-right px-3 py-1.5 bg-bg0 rounded-lg border border-bg2 tooltip-trigger relative cursor-help">
+            <div>
+                <div class="text-[12px] uppercase tracking-widest text-grey1 font-bold flex items-center gap-1 justify-end">
+                    Sim Model <i data-lucide="info" class="w-3 h-3"></i>
+                </div>
+                <div class="font-mono text-aqua font-bold text-xs">β = -6.4</div>
+            </div>
+            <div class="tooltip-content hidden absolute top-full right-0 mt-2 w-64 bg-bg1 border border-bg3 p-3 rounded-lg shadow-xl z-50 text-xs text-grey2 leading-relaxed">
+                <strong class="text-fg">Regression Coefficient (Beta):</strong><br>
+                Derived from OLS analysis. It indicates that for every <strong>1.0 increase in NDVI</strong> (Vegetation), Land Surface Temperature drops by <strong>6.4°C</strong>.
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Left sidebar -->
+        <div class="w-72 bg-bg1 border-r border-bg3 flex flex-col z-20 shadow-2xl">
+            
+            <div class="p-4 border-b border-bg3">
+                <h3 class="text-[10px] font-bold text-grey1 uppercase mb-2 tracking-widest flex items-center gap-2">
+                    <i data-lucide="layout-grid" class="w-3 h-3"></i> Base Map Style
+                </h3>
+                <div id="base-map-selector" class="flex justify-between gap-1">
+                    <button id="base-mapbox" onclick="switchBaseMap('mapbox')" class="base-map-btn active h-8 text-sm">1</button>
+                    <button id="base-carto" onclick="switchBaseMap('carto')" class="base-map-btn h-8 text-sm">2</button>
+                    <button id="base-esri" onclick="switchBaseMap('esri')" class="base-map-btn h-8 text-sm">3</button>
+                    <button id="base-stamen" onclick="switchBaseMap('stamen')" class="base-map-btn h-8 text-sm">4</button>
+                </div>
+            </div>
+
+            <div class="p-4 border-b border-bg3">
+                <h3 class="text-[15px] font-bold text-grey1 uppercase mb-3 tracking-widest flex items-center gap-2">
+                    <i data-lucide="layers" class="w-3 h-3"></i> Data Layers
+                </h3>
+                <div class="space-y-1.5">
+                    <button onclick="switchLayer('clusters')" id="btn-clusters" class="layer-btn active w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all bg-bg0 text-grey2 border border-transparent hover:border-bg3 flex items-center gap-2">
+                        <i data-lucide="scan-search" class="w-3 h-3 text-red"></i> Heat Clusters (Gi*)
+                    </button>
+                    <button onclick="switchLayer('temp')" id="btn-temp" class="layer-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all bg-bg0 text-grey2 border border-transparent hover:border-bg3 flex items-center gap-2">
+                        <i data-lucide="thermometer" class="w-3 h-3 text-orange"></i> Surface Temp
+                    </button>
+                    <button onclick="switchLayer('ndvi')" id="btn-ndvi" class="layer-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all bg-bg0 text-grey2 border border-transparent hover:border-bg3 flex items-center gap-2">
+                        <i data-lucide="trees" class="w-3 h-3 text-green"></i> Vegetation (NDVI)
+                    </button>
+                    <button onclick="switchLayer('warming')" id="btn-warming" class="layer-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all bg-bg0 text-grey2 border border-transparent hover:border-bg3 flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-3 h-3 text-yellow"></i> Seasonal Warming
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Legend panel -->
+            <div class="p-4 flex-1 overflow-y-auto">
+                <div class="bg-bg2/50 p-3 rounded-lg border border-bg3 mb-4 backdrop-blur-sm">
+                    <div class="flex gap-2 items-start">
+                        <i data-lucide="info" class="w-3 h-3 text-blue mt-0.5 shrink-0"></i>
+                        <p id="layer-description" class="text-[12.5px] text-grey2 leading-relaxed font-medium">Showing statistically significant Hot Spots alongside Rapid Seasonal Warming areas (Emerging Risks).</p>
+                    </div>
+                </div>
+                
+                <h4 class="text-[12px] font-bold text-grey1 uppercase mb-2 tracking-widest" id="legend-title">Heat &amp; Warming Clusters</h4>
+                <div id="legend-content" class="space-y-1.5 text-[12px] font-medium text-grey2 bg-bg0 p-3 rounded-lg border border-bg2">
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-sm bg-[#d73027]"></div> Heat Island (Hotspot)</div>
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-sm bg-[#e69875]"></div> Rapid Warming (Emerging)</div>
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-sm bg-bg0 border border-bg3"></div> Not Significant</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main map container -->
+        <div id="map" class="flex-1 bg-bg0 relative z-10">
+            <div id="map-click-prompt" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bg1 text-fg p-4 rounded-lg shadow-xl border border-bg3 z-[1000] text-center pointer-events-none">
+                <div class="flex items-center gap-3 font-medium">
+                    <i data-lucide="mouse-pointer-click" class="w-5 h-5 text-orange"></i>
+                    <span>Click on a Census Tract to explore more information.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right simulation panel (initially hidden) -->
+        <div id="simulation-panel" class="w-96 bg-bg1 border-l border-bg3 flex flex-col transition-all duration-500 transform translate-x-full absolute right-0 h-full z-[2000] shadow-[-10px_0_30px_rgba(0,0,0,0.3)]">
+            
+            <div id="empty-state" class="h-full flex flex-col items-center justify-center p-10 text-center">
+                <div class="w-16 h-16 bg-bg2 rounded-full flex items-center justify-center mb-4 border border-bg3">
+                    <i data-lucide="mouse-pointer-click" class="w-6 h-6 text-grey1 opacity-50"></i>
+                </div>
+                <h3 class="text-base font-bold text-fg mb-1">Ready to Simulate</h3>
+                <p class="text-xs text-grey2 max-w-[180px]">Select a Census Tract on the map to begin modeling interventions.</p>
+            </div>
+
+            <div id="active-content" class="hidden h-full flex flex-col">
+                
+                <!-- Selected tract header -->
+                <div class="p-4 border-b border-bg3 bg-bg1 relative shrink-0">
+                    <div class="pl-1">
+                        <div class="flex items-baseline justify-between mb-1">
+                            <h2 id="tract-id" class="text-xl font-bold text-fg tracking-tight font-mono">0000.00</h2>
+                            <span id="risk-badge" class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold uppercase tracking-wide border shadow-sm">Risk Category</span>
+                        </div>
+                        <div class="text-[12px] text-grey1 font-bold uppercase tracking-widest">Census Tract ID</div>
+                    </div>
+                </div>
+
+                <!-- Main panel content -->
+                <div class="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
+                    
+                    <!-- Demographic data grid -->
+                    <div>
+                        <h4 class="text-[12px] font-bold text-grey1 uppercase mb-2 tracking-widest">Demographic Context</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-bg0 p-2.5 rounded border border-bg2">
+                                <div class="text-xs text-grey1 mb-0.5">Avg Income</div>
+                                <div id="demo-income" class="font-mono text-sm text-fg font-medium">$0</div>
+                            </div>
+                            <div class="bg-bg0 p-2.5 rounded border border-bg2">
+                                <div class="text-xs text-grey1 mb-0.5">Minority %</div>
+                                <div id="demo-minority" class="font-mono text-sm text-fg font-medium">0%</div>
+                            </div>
+                            <div class="bg-bg0 p-2.5 rounded border border-bg2">
+                                <div class="text-xs text-grey1 mb-0.5">Population</div>
+                                <div id="demo-population" class="font-mono text-sm text-fg font-medium">0</div>
+                            </div>
+                            <div class="bg-bg0 p-2.5 rounded border border-bg2">
+                                <div class="text-xs text-grey1 mb-0.5">Pop Density</div>
+                                <div id="demo-popden" class="font-mono text-sm text-fg font-medium">0</div>
+                            </div>
+                            <div class="bg-bg0 p-2.5 rounded border border-bg2">
+                                <div class="text-xs text-grey1 mb-0.5">Renters</div>
+                                <div id="demo-renters" class="font-mono text-sm text-fg font-medium">0%</div>
+                            </div>
+                            <div class="bg-bg0 p-2.5 rounded border border-bg2">
+                                <div class="text-xs text-grey1 mb-0.5">Warming</div>
+                                <div id="demo-warming" class="font-mono text-sm text-fg font-medium">0.0°C</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NDVI simulation slider -->
+                    <div class="bg-bg0/50 p-3 rounded-lg border border-bg2 shrink-0">
+                        <div class="flex justify-between mb-2 items-end">
+                            <label class="text-xs font-bold text-green flex items-center gap-2"><i data-lucide="trees" class="w-3 h-3"></i> NDVI</label>
+                            <span id="ndvi-val" class="font-mono font-bold text-fg text-sm">0%</span>
+                        </div>
+                        <input type="range" id="ndvi-slider" min="0" max="0.8" step="0.01" class="w-full" value="0.35">
+                        <div class="flex justify-between text-[12px] text-grey1 mt-1 font-medium uppercase tracking-wider"><span>Concrete</span><span>Forest</span></div>
+                    </div>
+
+                    <!-- Temperature projection -->
+                    <div class="relative bg-bg2 border border-bg3 rounded-lg p-4 shrink-0">
+                        <h4 class="text-[12px] font-bold text-grey2 uppercase mb-3 flex items-center gap-2 tracking-widest"><i data-lucide="zap" class="w-3 h-3 text-yellow"></i> Projected Impact</h4>
+                        
+                        <!-- Model disclaimer -->
+                        <div class="text-[12px] text-grey1 mb-3 leading-relaxed bg-bg0/30 p-2 rounded border border-bg3/30">
+                            Estimates cooling based on local regression model. Note: More vegetation does not always mean cooler temperatures please see section 5.1.3 of the accompanying report.
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><div class="text-[12px] text-grey1 font-medium uppercase mb-0.5">Current</div><div id="curr-temp" class="text-xl font-mono text-grey2">00.0°</div></div>
+                            <div><div class="text-[12px] text-grey1 font-medium uppercase mb-0.5">Projected</div><div id="proj-temp" class="text-xl font-mono font-bold text-fg transition-all">00.0°</div></div>
+                        </div>
+                        <div id="delta-badge" class="hidden mt-3 pt-3 border-t border-bg3 flex items-center gap-2 animate-fade-in">
+                            <div class="p-1.5 rounded-full bg-bg0 border border-bg3"><i data-lucide="arrow-down-right" class="w-3 h-3 text-blue"></i></div>
+                            <div><div id="temp-change" class="font-bold text-xs text-blue">-0.0°C</div><div class="text-[12px] text-grey1">Model Prediction</div></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Close panel button -->
+                <div class="p-4 bg-bg0 border-t border-bg2 mt-auto">
+                    <button onclick="closePanel()" class="w-full py-2 rounded-lg bg-bg2 hover:bg-bg3 text-xs font-bold text-fg transition-all border border-bg3 flex items-center justify-center gap-2"><i data-lucide="x" class="w-3 h-3"></i> Close</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        
+        // App constants and configuration
+        const NDVI_COEF = -6.4;  // Regression coefficient for NDVI impact on temperature
+        const MB_TOKEN = 'pk.eyJ1Ijoic25lczE5eHgiLCJhIjoiY21odGoxOHlpMDA5YjJqb3l5czY2c2NvbyJ9.tPW5cOlHC07W3eQA0ejVeA';
+        
+        // Global state variables
+        let map, geoLayer;
+        let selectedFeature = null;
+        let currentLayer = 'clusters';
+        let currentBaseMap = 'mapbox';
+        let tileLayer = null;
+        let hasClickedTract = false; 
+
+        // Data classification breaks storage
+        let dataBreaks = { temp: [], ndvi: [], warming: [], income: [], minority: [] };
+
+        // Color palette definitions
+        const COLORS = {
+            border: '#2d353b', highlight: '#a7c080',
+            hotspot: '#d73027', coldspot: '#4575b4',
+            red1: '#fee5d9', red2: '#fcae91', red3: '#fb6a4a', red4: '#de2d26', red5: '#a50f15',
+            green1: '#edf8e9', green2: '#bae4b3', green3: '#74c476', green4: '#31a354', green5: '#006d2c',
+            purple1: '#efedf5', purple2: '#bcbddc', purple3: '#9e9ac8', purple4: '#756bb1', purple5: '#54278f',
+            blue1: '#eff3ff', blue2: '#bdd7e7', blue3: '#6baed6', blue4: '#3182bd', blue5: '#08519c',
+            warm1: '#ffffb2', warm2: '#fecc5c', warm3: '#fd8d3c', warm4: '#f03b20', warm5: '#bd0026',
+            rapidWarming: '#e69875'
+        };
+
+        // Risk category display labels
+        const RISK_LABELS = {
+            'Critical: Hot & Intensifying': 'Critical Heat',
+            'Emerging: Rapid Warming': 'Rapid Warming',
+            'Chronic: Hot but Stable': 'Stable Heat',
+            'Low Risk': 'Low Risk'
+        };
+
+        window.onload = function() { 
+            initMap(); 
+            if (typeof censusData !== 'undefined') {
+                calculateBreaks();
+                updateLegend();
+            }
+            // Initialize slider functionality
+            document.getElementById('ndvi-slider').oninput = function() { 
+                updateSliderFill(this);
+                if (selectedFeature) updateSimulation(this.value); 
+            };
+        };
+
+        function switchBaseMap(styleId) {
+            if (tileLayer) map.removeLayer(tileLayer);
+            currentBaseMap = styleId;
+            
+            const attribution = '© OpenStreetMap contributors';
+            
+            // Select appropriate tile layer based on style
+            if (styleId === 'mapbox') {
+                tileLayer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=' + MB_TOKEN, {
+                    attribution: attribution + ' © Mapbox', tileSize: 512, zoomOffset: -1, maxZoom: 19
+                });
+            } else if (styleId === 'carto') {
+                tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: attribution + ' © CARTO', subdomains: 'abcd', maxZoom: 19
+                });
+            } else if (styleId === 'esri') {
+                tileLayer = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: attribution + ' © Esri', maxZoom: 16
+                });
+            } else if (styleId === 'stamen') {
+                tileLayer = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}{r}.png', {
+                    attribution: attribution + ' © Stamen Design', subdomains: 'abcd', maxZoom: 20
+                });
+            }
+            
+            tileLayer.addTo(map);
+
+            // Update UI state
+            document.querySelectorAll('.base-map-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById('base-' + styleId).classList.add('active');
+        }
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([43.70, -79.42], 11);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            switchBaseMap('mapbox'); 
+            if (typeof censusData !== 'undefined') loadGeoJSON(censusData);
+            else alert("Data file 'toronto_heat_data.js' not found!");
+        }
+
+        function calculateBreaks() {
+            // Extract valid numeric values for each property
+            const getValues = (prop) => censusData.features.map(f => parseFloat(f.properties[prop])).filter(n => n !== null && n !== undefined && !isNaN(n)).sort((a,b) => a-b);
+            
+            const temps = getValues('avg_sumr');
+            const ndvis = getValues('ndvi_mean');
+            const warmings = getValues('warming');
+            const incomes = getValues('INCOME');
+            const minorities = getValues('minority_percent');
+
+            // Use Jenks natural breaks classification
+            const getBoundsJenks = (data) => {
+                if (data.length === 0) return [0,0,0,0,0];
+                const clusters = ss.ckmeans(data, 5);
+                return clusters.map(c => c[c.length - 1]);
+            };
+
+            dataBreaks.temp = getBoundsJenks(temps);
+            dataBreaks.ndvi = getBoundsJenks(ndvis);
+            dataBreaks.warming = getBoundsJenks(warmings);
+            dataBreaks.income = getBoundsJenks(incomes);
+            dataBreaks.minority = getBoundsJenks(minorities);
+        }
+
+        function getClusterColor(props) {
+            // Determine color based on statistical significance
+            if (props.Z_Score > 1.96) return COLORS.hotspot;
+            if (props.risk_category && props.risk_category.includes('Rapid Warming')) return COLORS.rapidWarming;
+            return '#ffffff';
+        }
+
+        function getNaturalColor(val, breaks, colors) {
+            // Classify value into 5-color gradient based on breaks
+            if (val <= breaks[0]) return colors[0];
+            if (val <= breaks[1]) return colors[1];
+            if (val <= breaks[2]) return colors[2];
+            if (val <= breaks[3]) return colors[3];
+            return colors[4];
+        }
+
+        function getFillColor(props) {
+            // Return appropriate color based on current layer
+            if (currentLayer === 'clusters') return getClusterColor(props);
+            if (currentLayer === 'temp') return getNaturalColor(props.avg_sumr, dataBreaks.temp, [COLORS.red1, COLORS.red2, COLORS.red3, COLORS.red4, COLORS.red5]);
+            if (currentLayer === 'ndvi') return getNaturalColor(props.ndvi_mean, dataBreaks.ndvi, [COLORS.green1, COLORS.green2, COLORS.green3, COLORS.green4, COLORS.green5]);
+            if (currentLayer === 'warming') return getNaturalColor(props.warming, dataBreaks.warming, [COLORS.warm1, COLORS.warm2, COLORS.warm3, COLORS.warm4, COLORS.warm5]);
+            return '#ccc';
+        }
+
+        function getOpacity(props) {
+            // Control visibility for non-significant features in cluster view
+            if (currentLayer === 'clusters') {
+                if (props.Z_Score > 1.96) return 0.85;
+                if (props.risk_category && props.risk_category.includes('Rapid Warming')) return 0.85;
+                return 0.0;
+            }
+            return 0.85;
+        }
+
+        function loadGeoJSON(data) {
+            if (geoLayer) map.removeLayer(geoLayer);
+
+            geoLayer = L.geoJSON(data, {
+                style: function(feature) {
+                    return {
+                        fillColor: getFillColor(feature.properties),
+                        weight: 1,
+                        opacity: 1,
+                        color: COLORS.border,
+                        fillOpacity: getOpacity(feature.properties)
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    // Interactive layer events
+                    layer.on('mouseover', function() { 
+                        if (currentLayer !== 'clusters' || 
+                            feature.properties.Z_Score > 1.96 || 
+                            (feature.properties.risk_category && feature.properties.risk_category.includes('Rapid Warming'))) {
+                            this.setStyle({ weight: 2, color: '#d3c6aa', fillOpacity: 1 }); 
+                        }
+                    });
+                    layer.on('mouseout', function() { if (selectedFeature !== feature) geoLayer.resetStyle(this); });
+                    layer.on('click', function() { selectTract(feature, layer); });
+                }
+            }).addTo(map);
+        }
+
+        function switchLayer(layerId) {
+            currentLayer = layerId;
+            // Update button states
+            document.querySelectorAll('.layer-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeBtn = document.getElementById('btn-' + layerId);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            updateLegend();
+            // Refresh layer styling
+            if (geoLayer) geoLayer.eachLayer(layer => {
+                layer.setStyle({
+                    fillColor: getFillColor(layer.feature.properties),
+                    fillOpacity: getOpacity(layer.feature.properties)
+                });
+            });
+        }
+
+        function updateLegend() {
+            const desc = document.getElementById('layer-description');
+            const title = document.getElementById('legend-title');
+            const content = document.getElementById('legend-content');
+            
+            const formatNum = (num, unit) => num.toFixed(1).replace(/\.0$/, '') + unit;
+            
+            let label = "", unit = "", breaks = [], colors = [], formatter = formatNum;
+
+            // Special handling for cluster layer
+            if (currentLayer === 'clusters') {
+                title.innerText = "Heat & Warming Clusters";
+                desc.innerText = "Showing statistically significant Hot Spots alongside Rapid Seasonal Warming areas (Emerging Risks).";
+                content.innerHTML = `
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-sm bg-[#d73027]"></div> Heat Island (Hotspot)</div>
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-sm bg-[#e69875]"></div> Rapid Warming (Emerging)</div>
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-sm bg-bg0 border border-bg3"></div> Not Significant</div>
+                `;
+                return;
+            } 
+
+            // Configure for data layers
+            if (currentLayer === 'temp') { 
+                label = "Surface Temp"; unit = "°C"; breaks = dataBreaks.temp; 
+                colors = [COLORS.red1, COLORS.red2, COLORS.red3, COLORS.red4, COLORS.red5]; 
+                desc.innerText = "Natural Breaks (Jenks) classification of Land Surface Temperature."; 
+            }
+            else if (currentLayer === 'ndvi') { 
+                label = "Vegetation (NDVI)"; breaks = dataBreaks.ndvi; 
+                colors = [COLORS.green1, COLORS.green2, COLORS.green3, COLORS.green4, COLORS.green5]; 
+                desc.innerText = "Vegetation Density (NDVI). Higher values = Greener."; 
+            }
+            else if (currentLayer === 'warming') { 
+                label = "Seasonal Warming"; unit = "°C"; breaks = dataBreaks.warming; 
+                colors = [COLORS.warm1, COLORS.warm2, COLORS.warm3, COLORS.warm4, COLORS.warm5]; 
+                desc.innerText = "Seasonal rise in temperature from May to August."; 
+            }
+
+            title.innerText = label + " - Jenks Breaks";
+            let html = '';
+            let prev = 0;
+            
+            // Generate legend items for 5-class classification
+            for(let i = 0; i < 5; i++) {
+                const start = (i === 0) ? formatNum(0, unit) : formatter(prev, unit);
+                const end = formatter(breaks[i], unit);
+                
+                html += `<div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-sm" style="background:${colors[i]}"></div> ${start} – ${end}</div>`;
+                prev = breaks[i];
+            }
+            content.innerHTML = html;
+        }
+
+        function selectTract(feature, layer) {
+            // Hide initial prompt on first interaction
+            if (!hasClickedTract) {
+                document.getElementById('map-click-prompt').classList.add('hidden');
+                hasClickedTract = true;
+            }
+
+            selectedFeature = feature;
+            // Reset all styles then highlight selected
+            geoLayer.eachLayer(l => geoLayer.resetStyle(l));
+            layer.setStyle({ weight: 3, color: COLORS.highlight, fillOpacity: 1 });
+
+            // Show simulation panel
+            const panel = document.getElementById('simulation-panel');
+            panel.classList.remove('translate-x-full');
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('active-content').classList.remove('hidden');
+
+            const props = feature.properties;
+            document.getElementById('tract-id').innerText = props.CTUID;
+            
+            // Format risk category for display
+            const rawRisk = props.risk_category || "Low Risk";
+            const prettyRisk = RISK_LABELS[rawRisk] || rawRisk;
+            
+            const badge = document.getElementById('risk-badge');
+            badge.innerText = prettyRisk;
+            
+            // Apply appropriate styling based on risk level
+            let badgeClass = "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border shadow-sm ";
+            if (rawRisk.includes('Critical')) badgeClass += "bg-red/10 text-red border-red/20";
+            else if (rawRisk.includes('Emerging')) badgeClass += "bg-orange/10 text-orange border-orange/20";
+            else if (rawRisk.includes('Chronic')) badgeClass += "bg-yellow/10 text-yellow border-yellow/20";
+            else badgeClass += "bg-green/10 text-green border-green/20";
+            badge.className = badgeClass;
+
+            const currentNDVI = parseFloat(props.ndvi_mean);
+
+            document.getElementById('curr-temp').innerText = parseFloat(props.avg_sumr).toFixed(1) + '°C';
+            
+            // Calculate renter percentage
+            const renterCount = parseInt(props.RENTER);
+            const ownerCount = parseInt(props.OWNER);
+            const totalDwellings = renterCount + ownerCount;
+            const rentersPercent = totalDwellings > 0 ? (renterCount / totalDwellings) * 100 : 0;
+            
+            // Populate demographic data
+            document.getElementById('demo-income').innerText = '$' + Math.round(parseFloat(props.INCOME)).toLocaleString();
+            document.getElementById('demo-minority').innerText = parseFloat(props.minority_percent).toFixed(1) + '%';
+            document.getElementById('demo-population').innerText = parseInt(props.POPULATION).toLocaleString(); 
+            document.getElementById('demo-popden').innerText = parseFloat(props.POPDEN).toFixed(0).toLocaleString(); 
+            document.getElementById('demo-renters').innerText = rentersPercent.toFixed(1) + '%'; 
+            document.getElementById('demo-warming').innerText = parseFloat(props.warming).toFixed(1) + '°C';
+
+            // Initialize NDVI slider with current value
+            const slider = document.getElementById('ndvi-slider');
+            slider.value = currentNDVI;
+            
+            updateSliderFill(slider);
+            updateSimulation(currentNDVI);
+            
+            // Attach simulation update to slider
+            slider.oninput = function() { 
+                updateSliderFill(this);
+                updateSimulation(this.value); 
+            };
+        }
+
+        function updateSliderFill(slider) {
+            // Update slider visual fill based on current value
+            const val = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+            slider.style.backgroundSize = val + '% 100%';
+        }
+
+        function updateSimulation(newVal) {
+            const props = selectedFeature.properties;
+            const originalNDVI = parseFloat(props.ndvi_mean);
+            const originalTemp = parseFloat(props.avg_sumr);
+            const newNDVI = parseFloat(newVal);
+
+            // Apply regression model: ΔTemp = ΔNDVI × β
+            const tempChange = (newNDVI - originalNDVI) * NDVI_COEF;
+            const newTemp = originalTemp + tempChange;
+
+            document.getElementById('ndvi-val').innerText = (newNDVI * 100).toFixed(0) + '%';
+            
+            const projEl = document.getElementById('proj-temp');
+            projEl.innerText = newTemp.toFixed(1) + '°C';
+            
+            // Show delta badge if temperature change is significant
+            const deltaBadge = document.getElementById('delta-badge');
+            if (Math.abs(tempChange) > 0.05) {
+                deltaBadge.classList.remove('hidden');
+                const isCooler = tempChange < 0;
+                
+                document.getElementById('temp-change').innerText = (isCooler ? '' : '+') + tempChange.toFixed(1) + '°C';
+                
+                // Color code based on cooling/warming
+                projEl.className = `text-xl font-mono font-bold transition-all ${isCooler ? 'text-blue' : 'text-red'}`;
+                document.getElementById('temp-change').className = `font-bold text-xs ${isCooler ? 'text-blue' : 'text-red'}`;
+            } else {
+                deltaBadge.classList.add('hidden');
+                projEl.className = 'text-xl font-mono font-bold text-fg transition-all';
+            }
+        }
+
+        function closePanel() {
+            // Hide simulation panel and reset selection
+            document.getElementById('simulation-panel').classList.add('translate-x-full');
+            if (geoLayer) geoLayer.resetStyle();
+            selectedFeature = null;
+        }
+    </script>
+</body>
+</html>
