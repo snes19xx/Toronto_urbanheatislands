@@ -68,5 +68,3 @@ Extracted from census attributes:
 - Population density  
 
 ---
-
-## Repository Structure
