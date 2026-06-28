@@ -21,9 +21,9 @@
 }
 
 [data-theme="light"] {
-  --paper: #f6f4ee;
-  --paper-2: #edeae2;
-  --paper-3: #e2ded4;
+  --paper: #ffffff;
+  --paper-2: #ffffff;
+  --paper-3: #ffffff;
   --ink: #1c1a18;
   --ink-2: #4a4844;
   --ink-3: #88857e;
@@ -537,10 +537,10 @@ button {
   color: #c0392b;
 }
 .risk-emerging {
-  color: #c8724a;
+  color: #c0651f;
 }
 .risk-chronic {
-  color: #a88a10;
+  color: #8b1a1a;
 }
 .risk-low {
   color: #2a7a40;

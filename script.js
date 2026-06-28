@@ -33,15 +33,15 @@ const COLORS = {
 
 const RISK_LABELS = {
   "Critical: Hot & Intensifying": "Critical heat",
-  "Emerging: Rapid Warming": "Rapid warming",
-  "Chronic: Hot but Stable": "Stable heat",
+  "Rapid Warming": "Rapid warming",
+  "Hot but Stable": "Heat island",
   "Low Risk": "Low risk",
 };
 
 const RISK_CLASSES = {
   "Critical: Hot & Intensifying": "risk-critical",
-  "Emerging: Rapid Warming": "risk-emerging",
-  "Chronic: Hot but Stable": "risk-chronic",
+  "Rapid Warming": "risk-emerging",
+  "Hot but Stable": "risk-chronic",
   "Low Risk": "risk-low",
 };
 
@@ -78,7 +78,7 @@ window.onload = function () {
   map = L.map("map", { zoomControl: false }).setView([43.7, -79.42], 11);
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
-  switchBaseMap("mapbox");
+  switchBaseMap("stamen");
 
   if (typeof censusData !== "undefined") {
     calculateBreaks();
@@ -123,10 +123,10 @@ function switchBaseMap(styleId) {
       theme: "dark",
     },
     stamen: {
-      url: "https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}{r}.png",
+      url: "https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png",
       opts: {
-        attribution: OSM + " © Stamen Design",
-        subdomains: "abcd",
+        attribution:
+          OSM + " © Stamen Design © Stadia Maps © OpenMapTiles",
         maxZoom: 20,
       },
       theme: "light",
