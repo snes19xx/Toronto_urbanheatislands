@@ -5,22 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Toronto Heat Islands Explorer</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://tiles.stadiamaps.com" />
+    <link rel="preload" href="toronto_heat_data.json" as="fetch" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      href="fonts/ibm-plex-sans.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
     />
 
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
-
-    <script src="toronto_heat_data.js"></script>
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
     <link rel="stylesheet" href="style.css" />
+
+    <script defer src="vendor/leaflet/leaflet.js"></script>
+    <script defer src="script.js"></script>
   </head>
 
   <body>
@@ -34,27 +33,12 @@
           </span>
         </div>
       </div>
-      <div
-        class="header-right"
-        style="display: flex; align-items: center; gap: 0.75rem"
-      >
+      <div class="header-right">
         <a
+          class="notebook-link"
           href="https://github.com/snes19xx/Toronto_urbanheatislands/blob/main/project.ipynb"
           target="_blank"
           rel="noopener"
-          style="
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.25rem 0.65rem;
-            border: 1px solid var(--rule-md);
-            font-size: 0.72rem;
-            color: var(--ink-2);
-            text-decoration: none;
-            transition:
-              border-color 0.15s,
-              color 0.15s;
-          "
         >
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path
@@ -79,47 +63,24 @@
     </header>
 
     <div class="app-body">
-      <!-- Sidebar -->
       <aside class="sidebar">
         <section class="sidebar-section">
           <h3 class="section-label">Base map</h3>
           <div class="basemap-grid" id="base-map-selector">
-            <button
-              class="basemap-btn"
-              id="base-mapbox"
-              onclick="switchBaseMap('mapbox')"
-            >
-              <span class="bm-swatch" style="background: #0d1117"></span>
+            <button class="basemap-btn" data-basemap="mapbox">
+              <span class="bm-swatch bm-mapbox"></span>
               Mapbox dark
             </button>
-            <button
-              class="basemap-btn"
-              id="base-carto"
-              onclick="switchBaseMap('carto')"
-            >
-              <span class="bm-swatch" style="background: #1b1b25"></span>
+            <button class="basemap-btn" data-basemap="carto">
+              <span class="bm-swatch bm-carto"></span>
               Carto dark
             </button>
-            <button
-              class="basemap-btn"
-              id="base-esri"
-              onclick="switchBaseMap('esri')"
-            >
-              <span
-                class="bm-swatch"
-                style="background: #9a9890; border: 1px solid #777"
-              ></span>
+            <button class="basemap-btn" data-basemap="esri">
+              <span class="bm-swatch bm-esri"></span>
               ESRI gray
             </button>
-            <button
-              class="basemap-btn active"
-              id="base-stamen"
-              onclick="switchBaseMap('stamen')"
-            >
-              <span
-                class="bm-swatch"
-                style="background: #f0ede4; border: 1px solid #ccc"
-              ></span>
+            <button class="basemap-btn active" data-basemap="stamen">
+              <span class="bm-swatch bm-stamen"></span>
               Stamen toner
             </button>
           </div>
@@ -127,46 +88,30 @@
 
         <section class="sidebar-section">
           <h3 class="section-label">Data layer</h3>
-          <div class="layer-list">
-            <button
-              onclick="switchLayer('clusters')"
-              id="btn-clusters"
-              class="layer-btn active"
-            >
-              <span class="layer-pip" style="background: #d73027"></span>
+          <div class="layer-list" id="layer-selector">
+            <button class="layer-btn active" data-layer="clusters">
+              <span class="layer-pip pip-clusters"></span>
               <span class="layer-text">
                 <span class="layer-name">Heat clusters</span>
                 <span class="layer-sub">Gi* spatial autocorrelation</span>
               </span>
             </button>
-            <button
-              onclick="switchLayer('temp')"
-              id="btn-temp"
-              class="layer-btn"
-            >
-              <span class="layer-pip" style="background: #fb6a4a"></span>
+            <button class="layer-btn" data-layer="temp">
+              <span class="layer-pip pip-temp"></span>
               <span class="layer-text">
                 <span class="layer-name">Surface temperature</span>
                 <span class="layer-sub">Land surface temp (&deg;C)</span>
               </span>
             </button>
-            <button
-              onclick="switchLayer('ndvi')"
-              id="btn-ndvi"
-              class="layer-btn"
-            >
-              <span class="layer-pip" style="background: #31a354"></span>
+            <button class="layer-btn" data-layer="ndvi">
+              <span class="layer-pip pip-ndvi"></span>
               <span class="layer-text">
                 <span class="layer-name">Vegetation</span>
                 <span class="layer-sub">NDVI index, 0&ndash;0.8</span>
               </span>
             </button>
-            <button
-              onclick="switchLayer('warming')"
-              id="btn-warming"
-              class="layer-btn"
-            >
-              <span class="layer-pip" style="background: #fd8d3c"></span>
+            <button class="layer-btn" data-layer="warming">
+              <span class="layer-pip pip-warming"></span>
               <span class="layer-text">
                 <span class="layer-name">Seasonal warming</span>
                 <span class="layer-sub"
@@ -185,11 +130,11 @@
           </p>
           <div class="legend-list" id="legend-content">
             <div class="legend-row">
-              <span class="legend-swatch" style="background: #d73027"></span>
+              <span class="legend-swatch sw-hotspot"></span>
               <span>Heat island (hotspot)</span>
             </div>
             <div class="legend-row">
-              <span class="legend-swatch" style="background: #e69875"></span>
+              <span class="legend-swatch sw-warming"></span>
               <span>Rapid warming (emerging)</span>
             </div>
             <div class="legend-row">
@@ -200,23 +145,12 @@
         </section>
       </aside>
 
-      <!-- Map -->
       <main id="map">
-        <div
-          id="map-click-prompt"
-          class="map-prompt"
-          style="
-            border-color: var(--ink-3);
-            color: var(--ink-2);
-            font-style: normal;
-            letter-spacing: 0.02em;
-          "
-        >
-          Select a census tract to model vegetation interventions
+        <div id="map-click-prompt" class="map-prompt">
+          Loading census tracts&hellip;
         </div>
       </main>
 
-      <!-- Simulation panel -->
       <aside id="simulation-panel" class="sim-panel">
         <div id="empty-state" class="empty-state">
           <p class="empty-title">Ready to simulate</p>
@@ -236,8 +170,8 @@
               </div>
             </div>
             <button
+              id="close-panel"
               class="close-btn"
-              onclick="closePanel()"
               aria-label="Close panel"
             >
               &#215;
@@ -323,7 +257,5 @@
         </div>
       </aside>
     </div>
-
-    <script src="script.js"></script>
   </body>
 </html>

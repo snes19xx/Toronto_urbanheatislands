@@ -6,6 +6,7 @@ The project integrates Landsat 8/9 thermal data, NDVI composites, census socioec
 ---
 
 ## Table of Contents
+
 - [Project Overview](#project-overview)
 - [Objectives](#objectives)
 - [Data Sources](#data-sources)
@@ -25,19 +26,21 @@ The project integrates Landsat 8/9 thermal data, NDVI composites, census socioec
 ---
 
 ## Project Overview
+
 Urban heat exposure varies significantly across Toronto due to land cover patterns, proximity to Lake Ontario, vegetation density, and socioeconomic inequality.  
 This project performs a full geospatial analysis to:
 
-- Identify **absolute heat hotspots** and **seasonal warming hotspots**  
-- Quantify **vegetation buffering effects (NDVI → temperature)**  
-- Detect **clusters of extreme heat** using Getis–Ord Gi★ and Moran’s I  
-- Explore **inequitable heat burden** across demographic and economic lines  
+- Identify **absolute heat hotspots** and **seasonal warming hotspots**
+- Quantify **vegetation buffering effects (NDVI → temperature)**
+- Detect **clusters of extreme heat** using Getis-Ord Gi★ and Moran’s I
+- Explore **inequitable heat burden** across demographic and economic lines
 - Produce **publication-quality maps** for spatial storytelling
 
 ---
 
 ## Objectives
-1. Generate month-by-month thermal mosaics (May–August 2025).
+
+1. Generate month-by-month thermal mosaics (May-August 2025).
 2. Compute an NDVI composite from all cloud-free Landsat 8/9 scenes.
 3. Extract census-tract-level zonal statistics for both temperature and NDVI.
 4. Run spatial autocorrelation, clustering, and hotspot identification.
@@ -49,29 +52,34 @@ This project performs a full geospatial analysis to:
 ## Data Sources
 
 ### **Remote Sensing**
-- **Landsat 8/9 Collection 2 Level-2**  
-  - Thermal Infrared (Band 10)  
-  - Surface Reflectance (Bands 4 & 5 for NDVI)  
-- Retrieved via:  
-  - Local raster files (thermal bands)  
+
+- **Landsat 8/9 Collection 2 Level-2**
+  - Thermal Infrared (Band 10)
+  - Surface Reflectance (Bands 4 & 5 for NDVI)
+- Retrieved via:
+  - Local raster files (thermal bands)
   - Google Earth Engine (cloud-masked NDVI composite)
 
 ### **Vector Data**
-- **Toronto Census Tracts (2021)**  
+
+- **Toronto Census Tracts (2021)**
 - **City Boundary Shapefile**
 
 ### **Socioeconomic Variables**
+
 Extracted from census attributes:
-- Income  
-- Minority population (%)  
-- Renter/Owner ratios  
-- Population density  
+
+- Income
+- Minority population (%)
+- Renter/Owner ratios
+- Population density
 
 ---
 
 ## Environment Setup
 
 ### **Required Libraries**
+
 python >= 3.9
 geopandas
 rasterio
@@ -90,40 +98,61 @@ earthengine-api
 geemap
 
 ### **Earth Engine Setup**
+
 The NDVI workflow requires one-time authentication:
+
 ```python
 import ee
 ee.Authenticate()
 ee.Initialize()
 ```
+
 ## Methodology
+
 1. Thermal Raster Processing
+
 - Load Landsat Band 10 thermal TIFFs.
 - Print metadata for QC (min/max, CRS, pixel resolution).
 - Clip all rasters to the Toronto boundary using rasterio.mask.
 - Save clipped rasters by month.
-- Create monthly mosaics (May–August) using rasterio.merge.
-  
+- Create monthly mosaics (May to August) using rasterio.merge.
+
 ## Outputs:
+
 - B10_MOSAIC_TORONTO_MAY.TIF
 - B10_MOSAIC_TORONTO_JUNE.TIF
 - B10_MOSAIC_TORONTO_JULY.TIF
 - B10_MOSAIC_TORONTO_AUGUST.TIF
 
 Temperature conversion:
+
 ```python
 Temp(K) = DN * 0.00341802 + 149.0
 Temp(C) = Temp(K) - 273.15
 ```
+
 ## 2. NDVI Raster Processing
 
 Steps:
-- Load Landsat 8/9 scenes from May–August 2025.
+
+- Load Landsat 8/9 scenes from May to August 2025.
 - Cloud mask using QA_PIXEL.
 - Convert reflectance scaling.
 - Compute NDVI:
+
 ```python
 NDVI = (NIR - RED) / (NIR + RED)
 ```
+
 - Median composite to form a stable NDVI raster.
 - Export via Earth Engine to Google Drive.
+
+## 3. Web Map Build
+
+`index.html` is a static page (`style.css`, `script.js`, self-hosted Leaflet and fonts under
+`vendor/` and `fonts/`). It reads `toronto_heat_data.json`, which is generated from the raw
+notebook export `toronto_heat_data.js`:
+
+```bash
+node build-data.js
+```

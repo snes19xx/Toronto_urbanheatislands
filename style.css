@@ -1,5 +1,37 @@
 /* Toronto Urban Heat Islands */
 
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 300 500;
+  font-display: swap;
+  src: url("fonts/ibm-plex-sans.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: italic;
+  font-weight: 300 500;
+  font-display: swap;
+  src: url("fonts/ibm-plex-sans-italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ibm-plex-mono-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ibm-plex-mono-500.woff2") format("woff2");
+}
+
 :root {
   --paper: #111318;
   --paper-2: #18191f;
@@ -94,6 +126,31 @@ button {
   transition:
     background 0.4s,
     border-color 0.4s;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.notebook-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--rule-md);
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.notebook-link:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
 }
 
 .site-title {
@@ -258,6 +315,21 @@ button {
   display: block;
 }
 
+.bm-mapbox {
+  background: #0d1117;
+}
+.bm-carto {
+  background: #1b1b25;
+}
+.bm-esri {
+  background: #9a9890;
+  border: 1px solid #777;
+}
+.bm-stamen {
+  background: #f0ede4;
+  border: 1px solid #ccc;
+}
+
 /* Layer buttons */
 .layer-list {
   display: flex;
@@ -298,6 +370,19 @@ button {
   flex-shrink: 0;
   margin-top: 0.33rem;
   display: block;
+}
+
+.pip-clusters {
+  background: #d73027;
+}
+.pip-temp {
+  background: #fb6a4a;
+}
+.pip-ndvi {
+  background: #31a354;
+}
+.pip-warming {
+  background: #fd8d3c;
 }
 
 .layer-text {
@@ -358,6 +443,13 @@ button {
   border: 1px solid var(--rule-md);
 }
 
+.sw-hotspot {
+  background: #d73027;
+}
+.sw-warming {
+  background: #e69875;
+}
+
 .fig-caption {
   font-size: 0.63rem;
   font-style: italic;
@@ -392,8 +484,9 @@ button {
   border: 1px solid var(--rule-md);
   padding: 0.4rem 0.9rem;
   font-size: 0.75rem;
-  font-style: italic;
-  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  border-color: var(--ink-3);
   z-index: 1000;
   pointer-events: none;
   white-space: nowrap;
